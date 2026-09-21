@@ -131,7 +131,7 @@ class MainActivity : AppCompatActivity() {
                 appendChat("நீங்கள்", userText)
                 inputEditText.text.clear()
                 appendChat("ஏஜென்ட்", "பதில் சிந்திக்கிறது...")
-                callGeminiApi(userText)
+                callGeminiApiWithRetry(userText)
             }
         }
     }
@@ -143,59 +143,75 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun callGeminiApi(prompt: String) {
+    private fun callGeminiApiWithRetry(prompt: String) {
         thread {
-            try {
-                val apiKey = getApiKey()
-                // சரியான எண்ட்பாயிண்ட்: v1beta மற்றும் gemini-flash-latest
-                val urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=$apiKey"
-                val url = URL(urlString)
+            val maxRetries = 3
+            var attempt = 0
+            var success = false
 
-                val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                conn.setRequestProperty("X-goog-api-key", apiKey)
-                conn.doOutput = true
-                conn.connectTimeout = 20000
-                conn.readTimeout = 20000
+            while (attempt < maxRetries && !success) {
+                attempt++
+                try {
+                    val apiKey = getApiKey()
+                    val urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=$apiKey"
+                    val url = URL(urlString)
 
-                val jsonBody = JSONObject().apply {
-                    val contents = JSONArray().apply {
-                        val partObject = JSONObject().apply {
-                            val parts = JSONArray().apply {
-                                put(JSONObject().put("text", prompt))
-                            }
-                            put("parts", parts)
-                        }
-                        put(partObject)
+                    val conn = (url.openConnection() as HttpURLConnection).apply {
+                        requestMethod = "POST"
+                        setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                        setRequestProperty("X-goog-api-key", apiKey)
+                        doOutput = true
+                        connectTimeout = 20000
+                        readTimeout = 20000
                     }
-                    put("contents", contents)
+
+                    val jsonBody = JSONObject().apply {
+                        val contents = JSONArray().apply {
+                            val partObject = JSONObject().apply {
+                                val parts = JSONArray().apply {
+                                    put(JSONObject().put("text", prompt))
+                                }
+                                put("parts", parts)
+                            }
+                            put(partObject)
+                        }
+                        put("contents", contents)
+                    }
+
+                    val os = OutputStreamWriter(conn.outputStream, "UTF-8")
+                    os.write(jsonBody.toString())
+                    os.flush()
+                    os.close()
+
+                    val responseCode = conn.responseCode
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        val reader = BufferedReader(InputStreamReader(conn.inputStream))
+                        val response = reader.use { it.readText() }
+
+                        val responseJson = JSONObject(response)
+                        val candidates = responseJson.getJSONArray("candidates")
+                        val firstCandidate = candidates.getJSONObject(0)
+                        val content = firstCandidate.getJSONObject("content")
+                        val parts = content.getJSONArray("parts")
+                        val answer = parts.getJSONObject(0).getString("text")
+
+                        appendChat("ஏஜென்ட்", answer.trim())
+                        success = true
+                    } else if (responseCode == 503 && attempt < maxRetries) {
+                        // 503 சர்வர் சுமை வந்தால் 1.5 வினாடிகள் காத்திருந்து மீண்டும் முயற்சிக்கும்
+                        Thread.sleep(1500)
+                    } else {
+                        val errorStream = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
+                        appendChat("பிழை ($responseCode)", errorStream)
+                        break
+                    }
+                } catch (e: Exception) {
+                    if (attempt >= maxRetries) {
+                        appendChat("பிழை", e.localizedMessage ?: "இணைப்பில் சிக்கல் ஏற்பட்டது")
+                    } else {
+                        Thread.sleep(1500)
+                    }
                 }
-
-                val os = OutputStreamWriter(conn.outputStream, "UTF-8")
-                os.write(jsonBody.toString())
-                os.flush()
-                os.close()
-
-                val responseCode = conn.responseCode
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    val reader = BufferedReader(InputStreamReader(conn.inputStream))
-                    val response = reader.use { it.readText() }
-
-                    val responseJson = JSONObject(response)
-                    val candidates = responseJson.getJSONArray("candidates")
-                    val firstCandidate = candidates.getJSONObject(0)
-                    val content = firstCandidate.getJSONObject("content")
-                    val parts = content.getJSONArray("parts")
-                    val answer = parts.getJSONObject(0).getString("text")
-
-                    appendChat("ஏஜென்ட்", answer.trim())
-                } else {
-                    val errorStream = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
-                    appendChat("பிழை ($responseCode)", errorStream)
-                }
-            } catch (e: Exception) {
-                appendChat("பிழை", e.localizedMessage ?: "இணைப்பில் சிக்கல் ஏற்பட்டது")
             }
         }
     }
