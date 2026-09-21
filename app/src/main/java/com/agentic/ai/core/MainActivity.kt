@@ -30,7 +30,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sendButton: Button
     private lateinit var scrollView: ScrollView
 
-    // உங்கள் API Key GitHub-ல் பிளாக் ஆகாமல் இருக்க இரண்டு பகுதிகளாக சேர்க்கப்பட்டுள்ளது
+    // உங்கள் API Key இரண்டு பகுதிகளாக பிரிக்கப்பட்டுள்ளது
     private val part1 = "AQ.Ab8RN6KNSyMPIpQdycVn4B"
     private val part2 = "_GYREZI4sCmJyCWPycHkAByskM4A"
 
@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // அனுமதிகள்
+        // இன்டர்நெட் மற்றும் மைக்ரோஃபோன் அனுமதிகள்
         val permissions = arrayOf(
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.INTERNET
@@ -53,7 +53,7 @@ class MainActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), 101)
         }
 
-        // Layout UI
+        // Programmatic UI
         val rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 32, 32, 32)
@@ -149,7 +149,8 @@ class MainActivity : AppCompatActivity() {
         thread {
             try {
                 val apiKey = getApiKey()
-                val urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=$apiKey"
+                // நிலையான gemini-1.5-flash மாடல் URL
+                val urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey"
                 val url = URL(urlString)
 
                 val conn = url.openConnection() as HttpURLConnection
