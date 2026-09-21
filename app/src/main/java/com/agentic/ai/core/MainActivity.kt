@@ -147,8 +147,8 @@ class MainActivity : AppCompatActivity() {
         thread {
             try {
                 val apiKey = getApiKey()
-                // v1 மற்றும் gemini-1.5-flash நிலையான URL
-                val urlString = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=$apiKey"
+                // சரியான எண்ட்பாயிண்ட்: v1beta மற்றும் gemini-flash-latest
+                val urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=$apiKey"
                 val url = URL(urlString)
 
                 val conn = url.openConnection() as HttpURLConnection
