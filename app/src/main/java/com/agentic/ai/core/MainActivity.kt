@@ -12,7 +12,6 @@ import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
@@ -25,18 +24,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sendButton: Button
     private lateinit var scrollView: ScrollView
 
-    // உங்கள் புதிய Gemini API Key
-    private fun getApiKey(): String {
-        return "AQ.Ab8RN6IWvI_upDWL3qBcFt8bJc0z_tPq2Rely6qDhXkT89ufcQ"
-    }
+    // உங்கள் முழுமையான AQ சாவி எந்தவித இடைவெளியுமின்றி
+    private val fullApiKey = "AQ.Ab8RN6IWvI_upDWL3qBcFt8bJc0z_tPq2Rely6qDhXkT89ufcQ".trim()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. திரை அமைப்பு (UI Layout)
         val rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#121212")) // Dark background
+            setBackgroundColor(Color.parseColor("#121212"))
             setPadding(32, 48, 32, 32)
         }
 
@@ -82,7 +78,6 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(rootLayout)
 
-        // 2. அனுப்பு பொத்தானின் செயல்பாடு
         sendButton.setOnClickListener {
             val userText = inputEditText.text.toString().trim()
             if (userText.isNotEmpty()) {
@@ -94,7 +89,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // திரையில் உரையாடலைக் காட்டும் ஃபங்க்ஷன்
     private fun appendChat(message: String) {
         runOnUiThread {
             chatHistoryTextView.append(message)
@@ -102,28 +96,24 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // 3. Gemini API உடன் தொடர்பு கொள்ளும் ஃபங்க்ஷன்
     private fun callGeminiApi(prompt: String) {
         thread {
             var conn: HttpURLConnection? = null
             try {
-                val apiKey = getApiKey()
-                // ஆதரிக்கப்படும் தற்போதைய Flash மாடல் URL
-                val urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+                // தற்போது நடைமுறையில் உள்ள அதிகாரப்பூர்வ gemini-2.5-flash எண்ட்பாயிண்ட்
+                val urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$fullApiKey"
                 val url = URL(urlString)
                 conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 
-                // AQ. சாவியை x-goog-api-key ஹெடரில் அனுப்புகிறோம்
-                conn.setRequestProperty("x-goog-api-key", apiKey)
+                // இரண்டு வழிகளிலும் சாவியை உறுதி செய்கிறோம்
+                conn.setRequestProperty("x-goog-api-key", fullApiKey)
                 
-                // Timeout-ஐ 30 வினாடிகளாக வைத்துள்ளோம்
                 conn.connectTimeout = 30000 
                 conn.readTimeout = 30000
                 conn.doOutput = true
 
-                // JSON Payload
                 val jsonPayload = JSONObject().apply {
                     val contents = JSONArray().apply {
                         val parts = JSONArray().apply {
