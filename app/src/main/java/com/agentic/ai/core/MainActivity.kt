@@ -1,10 +1,7 @@
 package com.agentic.ai.core
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
-import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
@@ -12,8 +9,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -30,9 +25,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sendButton: Button
     private lateinit var scrollView: ScrollView
 
-    // உங்கள் API Key
-    private val part1 = "AQ.Ab8RN6KNSyMPIpQdycVn4B"
-    private val part2 = "_GYREZI4sCmJyCWPycHkAByskM4A"
+    // உங்கள் Gemini API Key
+    private val part1 = "AQ.Ab8RN6KNsYMP1pQdyc"
+    private val part2 = "_GYREZI4sCmJyCWPycHkA"
 
     private fun getApiKey(): String {
         return part1 + part2
@@ -41,177 +36,128 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val permissions = arrayOf(
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.INTERNET
-        )
-        val permissionsToRequest = permissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-        if (permissionsToRequest.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), 101)
-        }
-
+        // 1. திரை அமைப்பு (UI Layout)
         val rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(32, 32, 32, 32)
-            setBackgroundColor(Color.parseColor("#121212"))
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
+            setBackgroundColor(Color.parseColor("#121212")) // டார்க் மோடு கருப்பு பின்னணி
+            setPadding(32, 48, 32, 32)
         }
-
-        val titleView = TextView(this).apply {
-            text = "AI Agent Core"
-            textSize = 22f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 24)
-        }
-        rootLayout.addView(titleView)
 
         scrollView = ScrollView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                0,
-                1f
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.0f
             )
         }
 
         chatHistoryTextView = TextView(this).apply {
+            setTextColor(Color.WHITE)
             textSize = 16f
-            setTextColor(Color.parseColor("#E0E0E0"))
-            setPadding(16, 16, 16, 16)
-            setBackgroundColor(Color.parseColor("#1E1E1E"))
-            text = "வணக்கம்! என்ன உதவி வேண்டும்?\n\n"
+            text = "AI Agent Core தயார்!\n\n"
         }
         scrollView.addView(chatHistoryTextView)
-        rootLayout.addView(scrollView)
 
         val inputLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(0, 16, 0, 0)
-            }
+            )
         }
 
         inputEditText = EditText(this).apply {
             hint = "கேள்வியைத் தட்டச்சு செய்யவும்..."
             setHintTextColor(Color.GRAY)
             setTextColor(Color.WHITE)
-            setBackgroundColor(Color.parseColor("#2A2A2A"))
-            setPadding(24, 24, 24, 24)
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f)
         }
-        inputLayout.addView(inputEditText)
 
         sendButton = Button(this).apply {
             text = "அனுப்பு"
-            setBackgroundColor(Color.parseColor("#007AFF"))
+            setBackgroundColor(Color.parseColor("#1E88E5"))
             setTextColor(Color.WHITE)
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                marginStart = 16
-            }
         }
+
+        inputLayout.addView(inputEditText)
         inputLayout.addView(sendButton)
 
+        rootLayout.addView(scrollView)
         rootLayout.addView(inputLayout)
+
         setContentView(rootLayout)
 
+        // 2. அனுப்பு பொத்தானின் செயல்பாடு
         sendButton.setOnClickListener {
             val userText = inputEditText.text.toString().trim()
             if (userText.isNotEmpty()) {
-                appendChat("நீங்கள்", userText)
+                appendChat("நீங்கள்: $userText\n")
+                appendChat("ஏஜென்ட்: பதில் சிந்திக்கிறது...\n")
                 inputEditText.text.clear()
-                appendChat("ஏஜென்ட்", "பதில் சிந்திக்கிறது...")
-                callGeminiApiWithRetry(userText)
+                callGeminiApi(userText)
             }
         }
     }
 
-    private fun appendChat(sender: String, message: String) {
+    // உரையாடல்களைத் திரையில் காட்டும் ஃபங்க்ஷன்
+    private fun appendChat(message: String) {
         runOnUiThread {
-            chatHistoryTextView.append("$sender: $message\n\n")
+            chatHistoryTextView.append(message)
             scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
         }
     }
 
-    private fun callGeminiApiWithRetry(prompt: String) {
+    // 3. Gemini API உடன் தொடர்பு கொள்ளும் ஃபங்க்ஷன் (Timeout பிழை சரிசெய்யப்பட்டது)
+    private fun callGeminiApi(prompt: String) {
         thread {
-            val maxRetries = 3
-            var attempt = 0
-            var success = false
+            var conn: HttpURLConnection? = null
+            try {
+                val apiKey = getApiKey()
+                val urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey"
+                val url = URL(urlString)
+                conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                conn.doOutput = true
 
-            while (attempt < maxRetries && !success) {
-                attempt++
-                try {
-                    val apiKey = getApiKey()
-                    val urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=$apiKey"
-                    val url = URL(urlString)
+                // டைம்அவுட் நேரத்தை 30 வினாடிகளாக அதிகரித்துள்ளோம்
+                conn.connectTimeout = 30000 
+                conn.readTimeout = 30000
 
-                    val conn = (url.openConnection() as HttpURLConnection).apply {
-                        requestMethod = "POST"
-                        setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                        setRequestProperty("X-goog-api-key", apiKey)
-                        doOutput = true
-                        connectTimeout = 20000
-                        readTimeout = 20000
-                    }
-
-                    val jsonBody = JSONObject().apply {
-                        val contents = JSONArray().apply {
-                            val partObject = JSONObject().apply {
-                                val parts = JSONArray().apply {
-                                    put(JSONObject().put("text", prompt))
-                                }
-                                put("parts", parts)
-                            }
-                            put(partObject)
+                // JSON டேட்டா அனுப்புதல்
+                val jsonPayload = JSONObject().apply {
+                    val contents = JSONArray().apply {
+                        val parts = JSONArray().apply {
+                            put(JSONObject().put("text", prompt))
                         }
-                        put("contents", contents)
+                        put(JSONObject().put("parts", parts))
                     }
-
-                    val os = OutputStreamWriter(conn.outputStream, "UTF-8")
-                    os.write(jsonBody.toString())
-                    os.flush()
-                    os.close()
-
-                    val responseCode = conn.responseCode
-                    if (responseCode == HttpURLConnection.HTTP_OK) {
-                        val reader = BufferedReader(InputStreamReader(conn.inputStream))
-                        val response = reader.use { it.readText() }
-
-                        val responseJson = JSONObject(response)
-                        val candidates = responseJson.getJSONArray("candidates")
-                        val firstCandidate = candidates.getJSONObject(0)
-                        val content = firstCandidate.getJSONObject("content")
-                        val parts = content.getJSONArray("parts")
-                        val answer = parts.getJSONObject(0).getString("text")
-
-                        appendChat("ஏஜென்ட்", answer.trim())
-                        success = true
-                    } else if (responseCode == 503 && attempt < maxRetries) {
-                        // 503 சர்வர் சுமை வந்தால் 1.5 வினாடிகள் காத்திருந்து மீண்டும் முயற்சிக்கும்
-                        Thread.sleep(1500)
-                    } else {
-                        val errorStream = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
-                        appendChat("பிழை ($responseCode)", errorStream)
-                        break
-                    }
-                } catch (e: Exception) {
-                    if (attempt >= maxRetries) {
-                        appendChat("பிழை", e.localizedMessage ?: "இணைப்பில் சிக்கல் ஏற்பட்டது")
-                    } else {
-                        Thread.sleep(1500)
-                    }
+                    put("contents", contents)
                 }
+
+                OutputStreamWriter(conn.outputStream).use { writer ->
+                    writer.write(jsonPayload.toString())
+                    writer.flush()
+                }
+
+                val responseCode = conn.responseCode
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    val response = conn.inputStream.bufferedReader().use(BufferedReader::readText)
+                    val jsonResponse = JSONObject(response)
+                    val candidates = jsonResponse.getJSONArray("candidates")
+                    val firstCandidate = candidates.getJSONObject(0)
+                    val content = firstCandidate.getJSONObject("content")
+                    val parts = content.getJSONArray("parts")
+                    val aiReply = parts.getJSONObject(0).getString("text")
+
+                    appendChat("ஏஜென்ட்: $aiReply\n\n")
+                } else {
+                    // சர்வர் பிழை விவரம்
+                    val errorResponse = conn.errorStream?.bufferedReader()?.use(BufferedReader::readText) ?: ""
+                    appendChat("பிழை ($responseCode): $errorResponse\n\n")
+                }
+            } catch (e: Exception) {
+                appendChat("பிழை: ${e.localizedMessage ?: "இணைப்பு தோல்வி"}\n\n")
+            } finally {
+                conn?.disconnect()
             }
         }
     }
