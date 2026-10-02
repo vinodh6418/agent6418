@@ -25,12 +25,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sendButton: Button
     private lateinit var scrollView: ScrollView
 
-    // உங்கள் Gemini API Key
-    private val part1 = "AQ.Ab8RN6KNsYMP1pQdyc"
-    private val part2 = "_GYREZI4sCmJyCWPycHkA"
-
+    // உங்கள் புதிய Gemini API Key
     private fun getApiKey(): String {
-        return part1 + part2
+        return "AQ.Ab8RN6IWvI_upDWL3qBcFt8bJc0z_tPq2Rely6qDhXkT89ufcQ"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,7 +36,7 @@ class MainActivity : AppCompatActivity() {
         // 1. திரை அமைப்பு (UI Layout)
         val rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#121212")) // டார்க் மோடு கருப்பு பின்னணி
+            setBackgroundColor(Color.parseColor("#121212")) // Dark background
             setPadding(32, 48, 32, 32)
         }
 
@@ -97,7 +94,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // உரையாடல்களைத் திரையில் காட்டும் ஃபங்க்ஷன்
+    // திரையில் உரையாடலைக் காட்டும் ஃபங்க்ஷன்
     private fun appendChat(message: String) {
         runOnUiThread {
             chatHistoryTextView.append(message)
@@ -105,24 +102,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // 3. Gemini API உடன் தொடர்பு கொள்ளும் ஃபங்க்ஷன் (Timeout பிழை சரிசெய்யப்பட்டது)
+    // 3. Gemini API உடன் தொடர்பு கொள்ளும் ஃபங்க்ஷன்
     private fun callGeminiApi(prompt: String) {
         thread {
             var conn: HttpURLConnection? = null
             try {
                 val apiKey = getApiKey()
-                val urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey"
+                // ஆதரிக்கப்படும் தற்போதைய Flash மாடல் URL
+                val urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
                 val url = URL(urlString)
                 conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                conn.doOutput = true
-
-                // டைம்அவுட் நேரத்தை 30 வினாடிகளாக அதிகரித்துள்ளோம்
+                
+                // AQ. சாவியை x-goog-api-key ஹெடரில் அனுப்புகிறோம்
+                conn.setRequestProperty("x-goog-api-key", apiKey)
+                
+                // Timeout-ஐ 30 வினாடிகளாக வைத்துள்ளோம்
                 conn.connectTimeout = 30000 
                 conn.readTimeout = 30000
+                conn.doOutput = true
 
-                // JSON டேட்டா அனுப்புதல்
+                // JSON Payload
                 val jsonPayload = JSONObject().apply {
                     val contents = JSONArray().apply {
                         val parts = JSONArray().apply {
@@ -150,7 +151,6 @@ class MainActivity : AppCompatActivity() {
 
                     appendChat("ஏஜென்ட்: $aiReply\n\n")
                 } else {
-                    // சர்வர் பிழை விவரம்
                     val errorResponse = conn.errorStream?.bufferedReader()?.use(BufferedReader::readText) ?: ""
                     appendChat("பிழை ($responseCode): $errorResponse\n\n")
                 }
